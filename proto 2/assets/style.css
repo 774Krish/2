@@ -1,0 +1,855 @@
+ /* Base resets */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: #0a0a0a;
+      color: #ffffff;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* =========================================================
+       Loading overlay
+       Sits above everything (the cursor layers are at 9999) and clears
+       itself as soon as the page has genuinely finished loading.
+       ========================================================= */
+    #loader {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Inherits --bg-color from body, so it matches the active theme */
+      background: var(--bg-color);
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+      /* Failsafe. If script.js never runs — blocked, failed to parse, or
+         the network died mid-fetch — nothing would ever remove the
+         overlay and the site would be permanently unusable. This force-
+         hides it after 8s with no JS involved at all. During the delay
+         the base style still applies, so the loader behaves normally
+         whenever the scripts do load. */
+      animation: loader-failsafe 0s 8s forwards;
+    }
+
+    #loader.loaded {
+      opacity: 0;
+      visibility: hidden;   /* also removes it from hit-testing */
+    }
+
+    @keyframes loader-failsafe {
+      to { opacity: 0; visibility: hidden; }
+    }
+
+    .loader-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .loader-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--text-color);
+      opacity: 0.8;
+    }
+
+    .loader-track {
+      width: min(220px, 50vw);
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(128, 128, 128, 0.25);
+      overflow: hidden;
+    }
+
+    .loader-bar {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: #ef4444;                 /* brand accent */
+      transition: width 0.35s ease;
+      /* Creeps toward the end while the real load happens, then JS snaps
+         it home. Worth being clear about: this is an indication that work
+         is in progress, not a measurement of bytes downloaded. A genuine
+         percentage would mean tracking every subresource by hand.
+
+         1.8s is tuned to the overlay's minimum display time in script.js
+         (MIN_DISPLAY_MS) so the bar is already near 88% by the time the
+         load finishes, making the final snap to 100% a small step rather
+         than a visible jump from a barely-started bar. */
+      animation: loader-creep 1.8s ease-out forwards;
+    }
+
+    /* JS adds this on window.load. Cancelling the animation is what lets
+       the width below take effect — a running animation with fill-mode
+       forwards outranks both this rule and any inline style. */
+    #loader.bar-full .loader-bar {
+      animation: none;
+      width: 100%;
+    }
+
+    @keyframes loader-creep {
+      from { width: 0; }
+      to   { width: 88%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #loader { transition: none; }
+      .loader-bar { animation: none; width: 100%; }
+    }
+
+    /* Floating particles background effect */
+    .bg-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 1px;
+      animation: float 12s infinite linear;
+    }
+
+    .p1 { width: 6px; height: 6px; top: 25%; left: 8%; animation-delay: 0s; }
+    .p2 { width: 8px; height: 8px; top: 65%; left: 82%; animation-delay: -3s; }
+    .p3 { width: 4px; height: 4px; top: 15%; left: 75%; animation-delay: -5s; }
+    .p4 { width: 5px; height: 5px; top: 80%; left: 20%; animation-delay: -2s; }
+    .p5 { width: 7px; height: 7px; top: 40%; left: 90%; animation-delay: -7s; }
+
+    @keyframes float {
+      0% { transform: translateY(0) rotate(0deg); opacity: 0.2; }
+      50% { transform: translateY(-20px) rotate(45deg); opacity: 0.6; }
+      100% { transform: translateY(0) rotate(0deg); opacity: 0.2; }
+    }
+
+    /* Navigation Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 60px;
+      z-index: 100;
+      /* Was rgba(10, 10, 10, 0.8) + backdrop-filter: blur(12px).
+         A backdrop blur over the animated canvas can never be cached:
+         the pixels behind the header change every frame, so the browser
+         re-blurred the full width of the screen ~60x a second, forever.
+         A slightly more opaque solid is near-identical over the hero. */
+      background: rgba(10, 10, 10, 0.92);
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      /* Pinned rather than inherited. The header keeps its dark fill in both
+         themes, so letting this fall through to --text-color made the wordmark
+         near-black on a near-black bar as soon as light mode was enabled. */
+      color: #ffffff;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    nav a {
+      color: #a1a1aa;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    nav a:hover {
+      color: #ffffff;
+    }
+
+    /* Hero Section */
+    .hero {
+      position: relative;
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .hero-content {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px; /* Controls vertical space between elements */
+  padding-top: 60px;
+}
+
+    .tagline {
+  color: #a1a1aa;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  z-index: 10;
+}
+
+    .main-title {
+  position: static; /* Restores standard spacing flow */
+  transform: none;
+  font-size: clamp(3rem, 7.5vw, 6.5rem);
+  font-weight: 800;
+  letter-spacing: -2px;
+  /* Was a hard-coded #ffffff, which is invisible against the white body in
+     light mode. Tracks the theme instead, so it is white on dark and
+     #121212 on light. */
+  color: var(--text-color);
+  white-space: nowrap;
+  z-index: 10;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  margin: 0;
+  /* Matches the 0.3s background/colour transition on body so the heading
+     fades with the rest of the palette rather than snapping. */
+  transition: color 0.3s;
+}
+
+    .container-3d {
+  position: absolute;
+  left: 2%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  /* The float animation lives on this parent so the filtered child below
+     stays a static raster. Translating a finished layer is nearly free,
+     whereas animating the filtered element itself forced the browser to
+     re-run the drop-shadow blur on every frame of the float. */
+  will-change: transform;
+  animation: gentle-float 6s ease-in-out infinite;
+  pointer-events: none; 
+}
+
+    .object-3d {
+  width: clamp(200px, 22vw, 320px);
+  height: auto;
+  /* Trimmed from a 30px blur. This is rasterised once and then cached,
+     but a tighter shadow still reads as depth and costs less to build. */
+  filter: drop-shadow(0 20px 22px rgba(0, 0, 0, 0.7));
+}
+
+    /* Matrix rain backdrop for the Hero section */
+    .matrix-3d-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Soft fade at the top/bottom so the rain blends into the page */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 82%, transparent 100%);
+}
+
+    #matrix3DCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+  /* Deliberately no CSS filter here. drop-shadow() on a canvas that
+     repaints at 60fps is a second full-screen blur pass stacked on top of
+     the glow the canvas already paints per glyph — and since the pixels
+     change every frame it can never be cached. The bloom is now produced
+     once, inside the canvas, by the head glyph's shadowBlur. */
+}
+
+    body.light-mode #matrix3DCanvas {
+  opacity: 0.55;
+}
+
+    /* Keeps this element's translateY(-50%) centring and floats around it */
+    @keyframes gentle-float {
+      0%, 100% { transform: translateY(-50%); }
+      50% { transform: translateY(calc(-50% - 15px)); }
+    }
+
+    .description {
+  max-width: 550px;
+  color: #d4d4d8;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  z-index: 10;
+  margin: 0;
+}
+
+    /* CTA Buttons */
+    .cta-group {
+  display: flex;
+  gap: 16px;
+  z-index: 10;
+  margin-top: 10px;
+}
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #ef4444;
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      /* Blur removed: this button sits in the middle of the hero, directly
+         over the animating canvas, so the blur could never be cached. The
+         slightly stronger fill reads the same against the rain. */
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    /* NEW: About Section */
+    .about-section {
+      position: relative;
+      padding: 100px 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+      z-index: 10;
+    }
+
+    .about-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 48px;
+      /* No backdrop-filter. The card sits on a flat page background, so
+         blurring it produced an identical flat colour — pure cost for zero
+         visual difference. The floating particles behind it also kept the
+         blur from ever being cached. */
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .section-label {
+      display: inline-block;
+      color: #ef4444;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+
+    .about-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      margin-bottom: 24px;
+      line-height: 1.2;
+    }
+
+    .about-text {
+      color: #a1a1aa;
+      font-size: 1.1rem;
+      line-height: 1.8;
+      margin-bottom: 32px;
+    }
+
+    .about-text strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .badge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 32px;
+    }
+
+    .badge-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .badge-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #ef4444;
+    }
+
+    .badge-label {
+      font-size: 0.9rem;
+      color: #a1a1aa;
+    }
+    
+    /* Default Dark Mode */
+:root {
+  --bg-color: #121212;
+  --text-color: #ffffff;
+  --card-bg: #1e1e1e;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Light Mode Overrides */
+body.light-mode {
+  --bg-color: #ffffff;
+  --text-color: #121212;
+  --card-bg: #f4f4f4;
+  /* A white-alpha border is invisible on white, so light mode uses dark ink.
+     Anything borrowed from --card-bg or --border-color therefore themes
+     itself; only the hard-coded rgba() values elsewhere need overrides. */
+  --border-color: rgba(0, 0, 0, 0.09);
+}
+
+/* The title's shadow is tuned for light text over the dark hero. Around dark
+   text on a white body the same 30px black blur reads as a grey smudge, so it
+   is removed rather than re-tuned. Higher specificity than .main-title, so
+   the declaration above still stands for dark mode. */
+body.light-mode .main-title {
+  text-shadow: none;
+}
+
+/* Apply Variables to Elements */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s; /* Smooth transition */
+}
+
+/* =========================================================
+   Anchor scrolling
+   The header is position: fixed, so it floats over the top of whatever
+   section is scrolled to. scroll-margin-top reserves the header's height
+   as dead space above each target, otherwise the "ABOUT ME" label lands
+   underneath the header bar and looks cut off.
+   ========================================================= */
+html {
+  scroll-behavior: smooth;
+}
+
+#about,
+#works,
+#contact {
+  /* 24px header padding + ~48px of content height, plus breathing room */
+  scroll-margin-top: 90px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A long animated scroll is exactly the kind of motion this preference
+     is asking to avoid; jumping instantly is the accessible behaviour. */
+  html { scroll-behavior: auto; }
+}
+
+/* =========================================================
+   Works section
+   Reuses the dark card idiom from .about-card, but via --card-bg and
+   --border-color so it flips with the theme instead of staying
+   near-white-on-white in light mode.
+   ========================================================= */
+.works-section {
+  position: relative;
+  padding: 20px 24px 100px;
+  max-width: 1000px;
+  margin: 0 auto;
+  z-index: 10;
+}
+
+.works-header {
+  margin-bottom: 40px;
+}
+
+.works-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.works-subtitle {
+  color: #a1a1aa;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  max-width: 560px;
+}
+
+.works-grid {
+  display: grid;
+  /* auto-fit + minmax means one column on phones, two at tablet width and
+     three on desktop with no media queries at all. */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.work-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;              /* clips the thumb to the rounded corners */
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  /* These two lines are what let the same class serve both an <a> (a card
+     that links somewhere) and an <article> (one that doesn't). Without them
+     an anchor card would render underlined and in link-blue. */
+  color: inherit;
+  text-decoration: none;
+  /* Only compositor-friendly properties are animated here — transform and
+     colours. Animating width/height/padding would relayout the whole grid
+     on every frame of the hover. */
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.work-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(239, 68, 68, 0.55);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Focus ring for the anchor cards. :focus-visible rather than :focus, so a
+   mouse click does not leave a ring behind — only keyboard tabbing shows it. */
+.work-card:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 4px;
+}
+
+.work-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 130px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  /* Brand-tinted rather than a fixed grey, so the same rule reads as a glow
+     on the dark card and a light wash on the white one. */
+  color: rgba(239, 68, 68, 0.85);
+  background:
+    linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(239, 68, 68, 0.02));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.work-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;                       /* equal-height cards across the row */
+  padding: 22px;
+}
+
+.work-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.work-desc {
+  color: #a1a1aa;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  margin-bottom: 18px;
+}
+
+.work-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  /* margin-top: auto pins the tags to the bottom, so they line up across
+     cards whose descriptions differ in length. */
+  margin-top: auto;
+}
+
+.work-tags li {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  background: rgba(128, 128, 128, 0.14);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+/* Only present on cards that link somewhere. The arrow nudges on hover as a
+   second, non-colour cue that the card is clickable — colour alone would be
+   invisible to anyone who cannot distinguish the red. */
+.work-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #ef4444;
+}
+
+.work-cta span {
+  transition: transform 0.25s ease;
+}
+
+.work-card:hover .work-cta span {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work-card { transition: none; }
+  .work-card:hover { transform: none; }
+  .work-cta span { transition: none; }
+  .work-card:hover .work-cta span { transform: none; }
+}
+
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      header {
+        padding: 20px 24px;
+      }
+      .main-title {
+        font-size: 3.5rem;
+      }
+      .about-card {
+        padding: 28px;
+      }
+      #matrix3DCanvas {
+        opacity: 0.6;
+      }
+    }
+  /* =========================================================
+     Theme switch — DARK ( o) LIGHT
+     Two labels either side of a pill track, with the knob sliding
+     between them. The <button> wraps the whole row, so the tap
+     target is the full control and not just the small track.
+     ========================================================= */
+  .theme-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;          /* enlarges the hit area, no visible box */
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Both labels are always rendered; the inactive one just recedes.
+     Leaving it in the layout means the row never reflows on toggle. */
+  .theme-switch .theme-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #a1a1aa;
+    opacity: 0.5;
+    transition: color 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* The knob position and the brightened label are both derived from the
+     same body class the rest of the palette uses, so there is no second
+     source of truth to keep in sync. */
+  body:not(.light-mode) .theme-label-dark,
+  body.light-mode .theme-label-light {
+    color: #ffffff;
+    opacity: 1;
+  }
+
+  .switch-track {
+    position: relative;
+    flex: none;
+    width: 42px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+
+  .switch-knob {
+    position: absolute;
+    top: 50%;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    /* Decelerating curve, so the knob settles into place instead of
+       stopping dead at the end of a linear slide. */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* The track is 42px wide with a 1px border, so the knob's left:3px sits it
+     4px in from the outer edge. Matching that same 4px gap on the far side
+     means travelling 42 - 14 - 4 - 4 = 20px, which keeps the knob visually
+     centred in the track at both ends of the slide rather than 2px short. */
+  body.light-mode .switch-knob {
+    transform: translateX(20px);
+  }
+
+  .theme-switch:hover .switch-track {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.38);
+  }
+
+  /* Keyboard users get a visible ring; the default outline is suppressed
+     only when it is not needed, via :focus-visible rather than :focus. */
+  .theme-switch:focus-visible {
+    outline: 2px solid #ef4444;
+    outline-offset: 6px;
+    border-radius: 999px;
+  }
+
+  /* Declared after .switch-knob on purpose: the reduced-motion block near the
+     loader appears earlier in the file, so an equal-specificity rule there
+     would lose to the transition above. */
+  @media (prefers-reduced-motion: reduce) {
+    .switch-knob { transition: none; }
+  }
+
+  /* Lives here rather than in the responsive block further up the file so the
+     whole control is defined in one place. The header row (logo + three links
+     + this switch) is the widest thing on the page, so the labels are the
+     first thing to go; the knob position still reads as the state without
+     them, and the aria-label keeps the control named for screen readers. */
+  @media (max-width: 768px) {
+    .theme-switch .theme-label { display: none; }
+  }
+
+    /* =========================================================
+       Custom cursor — a dot at the centre of a circle
+       Hidden by default so touch devices never see the layers;
+       only enabled for precise pointers with a real hover state.
+       ========================================================= */
+    .cursor-dot,
+    .cursor-ring {
+      display: none;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      /* Hide the native arrow everywhere while the custom one is active */
+      body.custom-cursor,
+      body.custom-cursor * {
+        cursor: none !important;
+      }
+
+      .cursor-dot,
+      .cursor-ring {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;          /* above the fixed header (100) */
+        pointer-events: none;   /* never blocks links or buttons */
+        border-radius: 50%;
+        opacity: 0;
+        will-change: transform;
+        transition: opacity 0.25s ease, width 0.22s ease, height 0.22s ease,
+                    margin 0.22s ease, background-color 0.22s ease,
+                    border-color 0.22s ease, box-shadow 0.22s ease, scale 0.12s ease;
+      }
+
+      /* Bright dot sitting exactly under the pointer */
+      .cursor-dot {
+        width: 7px;
+        height: 7px;
+        margin: -3.5px 0 0 -3.5px;
+        background: #eafcff;
+        box-shadow: 0 0 10px rgba(170, 245, 255, 0.9);
+      }
+
+      /* Ice-blue ring centred on the dot (JS gives both the same coords) */
+      .cursor-ring {
+        width: 34px;
+        height: 34px;
+        margin: -17px 0 0 -17px;
+        border: 1.5px solid rgba(170, 245, 255, 0.65);
+        box-shadow: 0 0 14px rgba(120, 225, 255, 0.35),
+                    inset 0 0 10px rgba(120, 225, 255, 0.15);
+      }
+
+      body.cursor-active .cursor-dot,
+      body.cursor-active .cursor-ring {
+        opacity: 1;
+      }
+
+      /* Grow + shift to the brand red over anything clickable */
+      body.cursor-hover .cursor-ring {
+        width: 56px;
+        height: 56px;
+        margin: -28px 0 0 -28px;
+        border-color: rgba(239, 68, 68, 0.9);
+        background: rgba(239, 68, 68, 0.08);
+        box-shadow: 0 0 22px rgba(239, 68, 68, 0.45);
+      }
+
+      body.cursor-hover .cursor-dot {
+        background: #ef4444;
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+      }
+
+      /* Press feedback */
+      body.cursor-down .cursor-ring {
+        scale: 0.82;
+      }
+
+      /* Light theme: darker ink so it stays visible on white */
+      body.light-mode .cursor-dot {
+        background: #0f172a;
+        box-shadow: 0 0 8px rgba(10, 108, 138, 0.55);
+      }
+
+      body.light-mode .cursor-ring {
+        border-color: rgba(10, 108, 138, 0.7);
+        box-shadow: 0 0 12px rgba(10, 108, 138, 0.25);
+      }
+
+      body.light-mode.cursor-hover .cursor-ring {
+        border-color: rgba(220, 38, 38, 0.9);
+        background: rgba(220, 38, 38, 0.07);
+        box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+      }
+
+      body.light-mode.cursor-hover .cursor-dot {
+        background: #dc2626;
+        box-shadow: 0 0 10px rgba(220, 38, 38, 0.7);
+      }
+    }
